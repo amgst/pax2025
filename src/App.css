@@ -1,0 +1,46 @@
+.App {
+  min-height: 100vh;
+  background: #f5f5f5;
+}
+
+/* Custom styles for better mobile experience */
+@media (max-width: 768px) {
+  .ant-table-wrapper {
+    overflow-x: auto;
+  }
+  
+  .ant-statistic {
+    text-align: center;
+  }
+  
+  /* Improve mobile header layout */
+  .ant-layout-header {
+    padding: 0 !important;
+  }
+  
+  /* Better button spacing on mobile */
+  .ant-btn {
+    white-space: nowrap;
+  }
+  
+  /* Prevent text overflow in mobile cards */
+  .ant-card-body {
+    padding: 16px !important;
+  }
+  
+  /* Mobile title adjustments */
+  .ant-typography h1,
+  .ant-typography h2,
+  .ant-typography h3 {
+    word-break: break-word;
+  }
+}
+
+/* Custom brand colors */
+.dgsh-primary {
+  color: #667eea;
+}
+
+.dgsh-secondary {
+  color: #764ba2;
+}
