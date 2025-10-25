@@ -24,6 +24,8 @@ import {
   CalendarOutlined,
   SyncOutlined
 } from '@ant-design/icons';
+import firebase from 'firebase/compat/app';
+import firebaseService from '../services/firebase';
 
 // Helper to parse various timestamp formats into milliseconds for comparison
 const parseAnyTimestampToMs = (timestamp) => {
@@ -53,7 +55,7 @@ const parseAnyTimestampToMs = (timestamp) => {
 
 // Helper to get the actual Firebase Timestamp object or create one from a Date/string
 const getFirebaseTimestamp = (timestamp) => {
-  if (!timestamp || typeof window.firebase === 'undefined' || typeof window.firebase.firestore === 'undefined') {
+  if (!timestamp) {
     return null;
   }
 
@@ -64,14 +66,14 @@ const getFirebaseTimestamp = (timestamp) => {
 
   // If it's a JavaScript Date object
   if (timestamp instanceof Date) {
-    return window.firebase.firestore.Timestamp.fromDate(timestamp);
+    return firebase.firestore.Timestamp.fromDate(timestamp);
   }
 
   // If it's a string, try to parse it
   if (typeof timestamp === 'string') {
     const date = new Date(timestamp);
     if (!isNaN(date.getTime())) {
-      return window.firebase.firestore.Timestamp.fromDate(date);
+      return firebase.firestore.Timestamp.fromDate(date);
     }
   }
 
@@ -108,14 +110,6 @@ const QRAnalytics = ({ userData = [], onAnalyticsRecalculated }) => {
   });
   const [isAutoRefreshEnabled, setIsAutoRefreshEnabled] = useState(false);
   const [recalculatingAnalytics, setRecalculatingAnalytics] = useState(false);
-
-  const initFirebase = async () => {
-    if (!window.firebase) return null;
-    if (!window.firebase.apps.length) {
-      window.firebase.initializeApp(window.dgshFirebaseConfig);
-    }
-    return window.firebase.firestore();
-  };
 
   /**
    * Calculates real-time statistics directly from the 'users' collection.
@@ -226,7 +220,7 @@ const QRAnalytics = ({ userData = [], onAnalyticsRecalculated }) => {
 
   const loadDiscoveryAnalytics = async () => {
     try {
-      const firestoreDb = await initFirebase();
+      const firestoreDb = firebaseService.db;
       if (!firestoreDb) {
         console.warn('Firebase not initialized for discovery analytics.');
         return { boothUsers: 0, boothRate: 0, floor01Users: 0, floor01Rate: 0 };
@@ -267,7 +261,7 @@ const QRAnalytics = ({ userData = [], onAnalyticsRecalculated }) => {
   const loadAllAnalyticsData = async () => {
     setLoading(true);
     try {
-      const firestoreDb = await initFirebase();
+      const firestoreDb = firebaseService.db;
       if (!firestoreDb) {
         throw new Error('Firebase not initialized');
       }
@@ -312,7 +306,7 @@ const QRAnalytics = ({ userData = [], onAnalyticsRecalculated }) => {
   const recalculateAndSaveAllAggregatedData = async () => {
     setRecalculatingAnalytics(true);
     try {
-      const firestoreDb = await initFirebase();
+      const firestoreDb = firebaseService.db;
       if (!firestoreDb) {
         throw new Error('Firebase not initialized');
       }
@@ -448,7 +442,7 @@ const QRAnalytics = ({ userData = [], onAnalyticsRecalculated }) => {
         uniqueUsers: finalUniqueUserCount,
         completionRate: finalCompletionRate,
         avgScansPerUser: finalAvgScansPerUser,
-        lastUpdated: window.firebase.firestore.FieldValue.serverTimestamp()
+        lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
       }, { merge: true });
 
       // Update qr_statistics for each QR code
@@ -461,7 +455,7 @@ const QRAnalytics = ({ userData = [], onAnalyticsRecalculated }) => {
           locationName: qr.locationName,
           locationNumber: qr.locationNumber,
           isActive: qr.isActive,
-          lastUpdated: window.firebase.firestore.FieldValue.serverTimestamp()
+          lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
         }, { merge: true });
       });
 
@@ -472,13 +466,13 @@ const QRAnalytics = ({ userData = [], onAnalyticsRecalculated }) => {
       batch.set(floor01DocRef, {
         usersFound: usersScannedFloor01,
         discoveryRate: finalFloor01Percentage,
-        lastUpdated: window.firebase.firestore.FieldValue.serverTimestamp()
+        lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
       }, { merge: true });
 
       batch.set(boothDocRef, {
         usersVisited: usersScannedBooth,
         discoveryRate: finalBoothPercentage,
-        lastUpdated: window.firebase.firestore.FieldValue.serverTimestamp()
+        lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
       }, { merge: true });
 
 
@@ -523,7 +517,7 @@ const QRAnalytics = ({ userData = [], onAnalyticsRecalculated }) => {
 
   const exportAnalytics = async () => {
     try {
-      const firestoreDb = await initFirebase();
+      const firestoreDb = firebaseService.db;
       if (!firestoreDb) {
         throw new Error('Firebase not initialized');
       }

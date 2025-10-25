@@ -1,40 +1,55 @@
+import firebase from 'firebase/compat/app';
+import 'firebase/compat/auth';
+import 'firebase/compat/firestore';
 import { notification } from 'antd'; // Import notification for feedback
+
+const firebaseConfig = {
+  apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
+  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.REACT_APP_FIREBASE_APP_ID,
+  measurementId: process.env.REACT_APP_FIREBASE_MEASUREMENT_ID
+};
 
 class FirebaseService {
   constructor() {
-    this.db = null;
-    this.auth = null;
-    this.initialized = false;
-  }
-
-  async init() {
-    if (this.initialized) return true;
-
-    try {
-      if (typeof window.firebase === 'undefined') {
-        throw new Error('Firebase not loaded');
+    if (!firebase.apps.length) {
+      try {
+        firebase.initializeApp(firebaseConfig);
+        console.log('Firebase initialized successfully');
+        this.initialized = true;
+      } catch (error) {
+        console.error('Firebase initialization error:', error);
+        this.initialized = false;
+        notification.error({
+          message: 'Firebase Initialization Failed',
+          description: 'Could not connect to Firebase. Please check your configuration and network connection.',
+          duration: 0 // Keep open until manually closed
+        });
       }
-
-      this.db = window.firebase.firestore();
-      this.auth = window.firebase.auth();
-      
-      this.db.settings({
-        cacheSizeBytes: window.firebase.firestore.CACHE_SIZE_UNLIMITED,
-        merge: true
-      });
-
+    } else {
+      firebase.app(); // if already initialized, use that one
       this.initialized = true;
-      console.log('Firebase initialized successfully');
-      return true;
-    } catch (error) {
-      console.error('Firebase initialization error:', error);
-      return false;
+    }
+
+    this.db = this.initialized ? firebase.firestore() : null;
+    this.auth = this.initialized ? firebase.auth() : null;
+    
+    if(this.db) {
+        this.db.settings({
+            cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED,
+            merge: true
+        });
     }
   }
 
   async getUsers() {
     if (!this.initialized) {
-      await this.init();
+        const err = new Error('Firebase not initialized');
+        console.error('Error fetching users:', err);
+        throw err;
     }
 
     try {
@@ -54,7 +69,9 @@ class FirebaseService {
 
   async resetUserData(userId) {
     if (!this.initialized) {
-      await this.init();
+        const err = new Error('Firebase not initialized');
+        console.error('Error resetting user data:', err);
+        throw err;
     }
 
     try {
@@ -66,7 +83,7 @@ class FirebaseService {
         redemptionStatus: {}, // Clear redemption status
         completionTime: null, // Clear completion time
         firstScanDate: null, // Clear first scan date
-        updatedAt: window.firebase.firestore.FieldValue.serverTimestamp() // Update timestamp
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp() // Update timestamp
       });
     } catch (error) {
       console.error('Error resetting user data:', error);
