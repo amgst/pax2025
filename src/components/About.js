@@ -43,14 +43,14 @@ const About = () => {
         About This Project
       </Title>
       <Paragraph type="secondary">
-        Information about the Doomlings GenCon Scavenger Hunt Dashboard.
+        Information about the Pax2025 Dashboard.
       </Paragraph>
 
       <Divider />
 
       <Title level={4}>Project Overview</Title>
       <Paragraph>
-        This dashboard provides administrative tools and analytics for the Doomlings GenCon Scavenger Hunt. It allows administrators to monitor user progress, view QR code analytics, manage reward tiers, and oversee the grand prize drawing.
+        This dashboard provides administrative tools and analytics for Pax2025. It allows administrators to monitor user progress, view QR code analytics, manage reward tiers, and oversee the grand prize drawing.
       </Paragraph>
       <Paragraph>
         The scavenger hunt engages participants by having them scan QR codes located throughout the convention. As they scan more codes, they unlock various reward tiers and accumulate entries for a daily grand prize drawing.

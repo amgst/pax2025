@@ -89,10 +89,10 @@ const Login = ({ onLogin }) => {
             }} 
           />
           <Title level={2} style={{ margin: 0, color: '#262626' }}>
-            DGSH Admin Dashboard
+            Pax2025 Admin Dashboard
           </Title>
           <Text type="secondary">
-            Doomlings Scavenger Hunt Administration
+            Pax2025 Administration
           </Text>
         </div>
 

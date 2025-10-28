@@ -38,7 +38,6 @@ import {
   QrcodeOutlined,
   MenuOutlined,
   DeleteOutlined,
-  InfoCircleOutlined,
   CheckSquareOutlined,
   ClockCircleOutlined,
   ExclamationCircleOutlined,
@@ -50,8 +49,7 @@ import QRAnalytics from './QRAnalytics';
 import QRCodeDisplay from './QRCodeDisplay';
 import LocationPerformance from './LocationPerformance';
 import TierManagement from './TierManagement';
-import GrandPrize from './GrandPrize';
-import About from './About';
+// Removed Prize and About tabs
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -118,12 +116,8 @@ const AdminDashboard = () => {
   const menuItems = [
     { key: 'overview', icon: <DashboardOutlined />, label: 'Overview' },
     { key: 'users', icon: <UserOutlined />, label: 'Users' },
-    { key: 'tiers', icon: <BarChartOutlined />, label: 'Tiers' },
-    { key: 'tier-mgmt', icon: <TrophyOutlined />, label: 'Management' },
     { key: 'analytics', icon: <QrcodeOutlined />, label: 'Analytics' },
     { key: 'qr', icon: <QrcodeOutlined />, label: 'QR Codes' },
-    { key: 'grand-prize', icon: <GiftOutlined />, label: 'Prize' },
-    { key: 'about', icon: <InfoCircleOutlined />, label: 'About' },
   ];
 
   const handleMenuClick = ({ key }) => {
@@ -170,7 +164,7 @@ const AdminDashboard = () => {
         whiteSpace: 'nowrap',
         minWidth: 'fit-content'
       }}>
-        DGSH Dashboard
+        Pax Dashboard
       </div>
       <Menu
         mode="horizontal"
@@ -205,7 +199,7 @@ const AdminDashboard = () => {
         textOverflow: 'ellipsis',
         marginRight: '12px'
       }}>
-        DGSH Dashboard
+        Pax Dashboard
       </div>
       <Button
         type="text"
@@ -303,7 +297,7 @@ const loadUserData = async () => {
   };
 
   useEffect(() => {
-    if (activeTab === 'overview' || activeTab === 'users' || activeTab === 'tiers' || activeTab === 'grand-prize' || activeTab === 'tier-mgmt') {
+    if (activeTab === 'overview' || activeTab === 'users' || activeTab === 'tiers' || activeTab === 'tier-mgmt') {
         loadUserData();
     }
 
@@ -1134,10 +1128,10 @@ const loadUserData = async () => {
               fontSize: isMobile ? '18px' : '24px'
             }}>
               <DashboardOutlined style={{ color: '#667eea' }} />
-              DGSH Analytics Dashboard
+              Pax2025 Analytics Dashboard
             </Title>
             <Text type="secondary">
-              Comprehensive analytics and insights for the Doomlings Scavenger Hunt campaign
+              Comprehensive analytics and insights for the Pax2025 campaign
             </Text>
             {userData.length > 0 && (
               <Text type="secondary" style={{ display: 'block', marginTop: 8 }}>
@@ -1762,8 +1756,7 @@ const loadUserData = async () => {
         {activeTab === 'tier-mgmt' && <TierManagement userData={userData} />}
         {activeTab === 'analytics' && <QRAnalytics userData={userData} onAnalyticsRecalculated={handleAnalyticsRecalculated} />}
         {activeTab === 'qr' && <QRCodeDisplay />}
-        {activeTab === 'grand-prize' && <GrandPrize userData={userData} />}
-        {activeTab === 'about' && <About />}
+      {/* Removed Prize and About tabs */}
       </Content>
     </Layout>
   );
