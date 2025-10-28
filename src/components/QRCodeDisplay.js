@@ -1,21 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Row, Col, Button, notification, QRCode, Space, Tag, Alert } from 'antd';
 import { QrcodeOutlined, ReloadOutlined, LinkOutlined } from '@ant-design/icons';
+import firebaseService from '../services/firebase';
 
 const QRCodeDisplay = () => {
   const [loading, setLoading] = useState(false);
   const [qrCodes, setQrCodes] = useState([]);
   const [error, setError] = useState(null);
 
-  // Initialize Firebase
-  const initFirebase = async () => {
-    if (!window.firebase) return false;
-    
-    if (!window.firebase.apps.length) {
-      window.firebase.initializeApp(window.dgshFirebaseConfig);
+  // Use centralized Firebase service
+  const getDb = () => {
+    if (!firebaseService.initialized || !firebaseService.db) {
+      return null;
     }
-    
-    return window.firebase.firestore();
+    return firebaseService.db;
   };
 
   const loadQRCodes = async () => {
@@ -23,10 +21,8 @@ const QRCodeDisplay = () => {
     setError(null);
     
     try {
-      const db = await initFirebase();
-      if (!db) {
-        throw new Error('Firebase not initialized');
-      }
+      const db = getDb();
+      if (!db) throw new Error('Firebase not initialized');
 
       const qrSnapshot = await db.collection('valid_codes').get();
       

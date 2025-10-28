@@ -1,21 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Row, Col, Progress, Tag, Statistic, Alert, Spin, Tooltip } from 'antd'; // Import Tooltip
 import { TrophyOutlined, EnvironmentOutlined } from '@ant-design/icons';
+import firebaseService from '../services/firebase';
 
 const LocationPerformance = ({ userData = [], refreshTrigger }) => { // Added refreshTrigger prop
   const [loading, setLoading] = useState(false);
   const [locationData, setLocationData] = useState([]);
   const [error, setError] = useState(null);
 
-  // Initialize Firebase
-  const initFirebase = async () => {
-    if (!window.firebase) return false;
-    
-    if (!window.firebase.apps.length) {
-      window.firebase.initializeApp(window.dgshFirebaseConfig);
+  // Use centralized Firebase service
+  const getDb = () => {
+    if (!firebaseService.initialized || !firebaseService.db) {
+      return null;
     }
-    
-    return window.firebase.firestore();
+    return firebaseService.db;
   };
 
   const loadLocationPerformance = async () => {
@@ -23,10 +21,8 @@ const LocationPerformance = ({ userData = [], refreshTrigger }) => { // Added re
     setError(null);
     
     try {
-      const db = await initFirebase();
-      if (!db) {
-        throw new Error('Firebase not initialized');
-      }
+      const db = getDb();
+      if (!db) throw new Error('Firebase not initialized');
 
       const qrStatsSnapshot = await db.collection('qr_statistics').get();
       

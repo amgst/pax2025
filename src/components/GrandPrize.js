@@ -30,6 +30,7 @@ import {
   CheckCircleOutlined
 } from '@ant-design/icons';
 import firebaseService from '../services/firebase'; // Import firebaseService
+import firebase from 'firebase/compat/app';
 
 const { Title, Text } = Typography;
 
@@ -44,13 +45,12 @@ const GrandPrize = ({ userData = [] }) => {
   const [selectedWinnersThisRound, setSelectedWinnersThisRound] = useState([]); // To display multiple winners selected in one go
 
 
-  // Initialize Firebase (utility function)
-  const initFirebase = async () => {
-    if (!window.firebase) return null; // Return null if firebase is not loaded
-    if (!window.firebase.apps.length) {
-      window.firebase.initializeApp(window.dgshFirebaseConfig);
+  // Use centralized Firebase service
+  const getDb = () => {
+    if (!firebaseService.initialized || !firebaseService.db) {
+      return null;
     }
-    return window.firebase.firestore();
+    return firebaseService.db;
   };
 
   // Function to load and process entries from userData
@@ -117,10 +117,8 @@ const GrandPrize = ({ userData = [] }) => {
   const loadWinnerHistory = async () => {
     setHistoryLoading(true);
     try {
-      const firestoreDb = await initFirebase();
-      if (!firestoreDb) {
-        throw new Error('Firebase not initialized');
-      }
+      const firestoreDb = getDb();
+      if (!firestoreDb) throw new Error('Firebase not initialized');
 
       const snapshot = await firestoreDb.collection('daily_winners')
         .orderBy('dateTimestamp', 'desc')
@@ -169,10 +167,8 @@ const GrandPrize = ({ userData = [] }) => {
 
     setLoading(true);
     try {
-      const firestoreDb = await initFirebase();
-      if (!firestoreDb) {
-        throw new Error('Firebase not initialized');
-      }
+      const firestoreDb = getDb();
+      if (!firestoreDb) throw new Error('Firebase not initialized');
 
       const pastWinnerUserIds = new Set(winnerHistory.map(winner => winner.userId));
       const selectedWinners = [];
@@ -198,7 +194,7 @@ const GrandPrize = ({ userData = [] }) => {
 
         const winnerDataToSave = {
           date: new Date().toDateString(),
-          dateTimestamp: window.firebase.firestore.Timestamp.fromDate(new Date()),
+          dateTimestamp: firebase.firestore.Timestamp.fromDate(new Date()),
           winner: {
             displayName: winningEntry.name,
             email: winningEntry.email,
@@ -207,9 +203,9 @@ const GrandPrize = ({ userData = [] }) => {
           },
           userId: winningEntry.userId,
           entryNumber: winningEntry.entryNum,
-          totalEntries: entries.length, // Total entries before filtering for eligibility
+          totalEntries: entries.length,
           entryType: winningEntry.type,
-          timestamp: window.firebase.firestore.FieldValue.serverTimestamp()
+          timestamp: firebase.firestore.FieldValue.serverTimestamp()
         };
 
         const winnerDocRef = firestoreDb.collection('daily_winners').doc(); // Create a new document for each winner

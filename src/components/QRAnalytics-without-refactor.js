@@ -23,6 +23,8 @@ import {
   CalendarOutlined,
   SyncOutlined // Import SyncOutlined for recalculate button
 } from '@ant-design/icons';
+import firebaseService from '../services/firebase';
+import firebase from 'firebase/compat/app';
 
 const QRAnalytics = ({ userData = [] }) => {
   const [loading, setLoading] = useState(false);
@@ -43,12 +45,11 @@ const QRAnalytics = ({ userData = [] }) => {
   const [isAutoRefreshEnabled, setIsAutoRefreshEnabled] = useState(false);
   const [recalculatingDiscovery, setRecalculatingDiscovery] = useState(false); // New state for discovery recalculation loading
 
-  const initFirebase = async () => {
-    if (!window.firebase) return null; // Return null if firebase is not loaded
-    if (!window.firebase.apps.length) {
-      window.firebase.initializeApp(window.dgshFirebaseConfig);
+  const getDb = () => {
+    if (!firebaseService.initialized || !firebaseService.db) {
+      return null;
     }
-    return window.firebase.firestore();
+    return firebaseService.db;
   };
 
   /**
@@ -58,7 +59,7 @@ const QRAnalytics = ({ userData = [] }) => {
    */
   const loadOptimizedStats = async () => {
     try {
-      const firestoreDb = await initFirebase();
+      const firestoreDb = getDb();
       if (!firestoreDb) {
         console.warn('Firebase not initialized for optimized stats.');
         return null;
@@ -237,10 +238,8 @@ const QRAnalytics = ({ userData = [] }) => {
   const loadAllAnalyticsData = async () => {
     setLoading(true);
     try {
-      const firestoreDb = await initFirebase();
-      if (!firestoreDb) {
-        throw new Error('Firebase not initialized');
-      }
+      const firestoreDb = getDb();
+      if (!firestoreDb) throw new Error('Firebase not initialized');
 
       const [usersSnapshot, qrCodesSnapshot, summaryDoc] = await Promise.all([
         firestoreDb.collection('users').get(),
@@ -285,10 +284,8 @@ const QRAnalytics = ({ userData = [] }) => {
   const handleRecalculateDiscoveryAnalytics = async () => {
     setRecalculatingDiscovery(true);
     try {
-      const firestoreDb = await initFirebase();
-      if (!firestoreDb) {
-        throw new Error('Firebase not initialized');
-      }
+      const firestoreDb = getDb();
+      if (!firestoreDb) throw new Error('Firebase not initialized');
 
       // Logic from functions/discoveryAnalytics.js
       const usersSnapshot = await firestoreDb.collection('users').get();
@@ -348,13 +345,13 @@ const QRAnalytics = ({ userData = [] }) => {
       batch.set(boothDocRef, {
         usersVisited: usersScannedBooth,
         discoveryRate: boothPercentage,
-        lastUpdated: window.firebase.firestore.FieldValue.serverTimestamp()
+        lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
       }, { merge: true });
 
       batch.set(floor01DocRef, {
         usersFound: usersScannedFloor01,
         discoveryRate: floor01Percentage,
-        lastUpdated: window.firebase.firestore.FieldValue.serverTimestamp()
+        lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
       }, { merge: true });
 
       await batch.commit();
@@ -395,10 +392,8 @@ const QRAnalytics = ({ userData = [] }) => {
 
   const exportAnalytics = async () => {
     try {
-      const firestoreDb = await initFirebase();
-      if (!firestoreDb) {
-        throw new Error('Firebase not initialized');
-      }
+      const firestoreDb = getDb();
+      if (!firestoreDb) throw new Error('Firebase not initialized');
 
       const [qrCodesSnapshot, usersSnapshot] = await Promise.all([
         firestoreDb.collection('valid_codes').get(),
