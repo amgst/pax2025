@@ -291,6 +291,25 @@ const loadUserData = async () => {
   }
 };
 
+const handleResetUser = async (userId) => {
+  try {
+    setLoading(true);
+    await firebaseService.resetUserData(userId);
+    notification.success({
+      message: 'User Data Reset',
+      description: 'The user\'s data has been reset successfully.'
+    });
+    await loadUserData();
+  } catch (error) {
+    notification.error({
+      message: 'Reset Failed',
+      description: error.message || 'Could not reset user data. Please try again.'
+    });
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   const handleAnalyticsRecalculated = () => {
     loadUserData();
@@ -788,110 +807,28 @@ const loadUserData = async () => {
       },
       sortDirections: ['ascend', 'descend'],
     },
+    
     {
-      title: 'Progress',
-      key: 'progress',
-      width: 140,
-      render: (_, record) => {
-        const percentage = Math.round((record.scannedCodes / record.totalCodes) * 100);
-        return (
-          <div style={{ textAlign: 'center' }}>
-            <Progress
-              type="circle"
-              size={50}
-              percent={percentage}
-              status={percentage === 100 ? 'success' : percentage > 0 ? 'active' : 'normal'}
-              strokeColor={percentage === 100 ? '#52c41a' : '#1890ff'}
-            />
-            <Text style={{ fontSize: 12, marginTop: 4, display: 'block' }}>
-              {record.scannedCodes}/{record.totalCodes} codes ({percentage}%)
-            </Text>
-          </div>
-        );
-      },
-      sorter: (a, b) => {
-        const percentageA = Math.round((a.scannedCodes / a.totalCodes) * 100);
-        const percentageB = Math.round((b.scannedCodes / b.totalCodes) * 100);
-        return percentageA - percentageB;
-      },
-      sortDirections: ['ascend', 'descend'],
-    },
-    {
-      title: 'Drawing Entries',
-      key: 'entries',
-      width: 140,
-      align: 'center',
-      render: (_, record) => {
-        const totalEntries = record.drawingEntries + record.bonusEntries;
-        return (
-          <div style={{ textAlign: 'center' }}>
-            <Badge count={totalEntries} showZero style={{ backgroundColor: '#faad14' }}>
-              <TrophyOutlined style={{ fontSize: 24, color: totalEntries > 0 ? '#faad14' : '#d9d9d9' }} />
-            </Badge>
-            <div style={{ fontSize: 11, marginTop: 4 }}>
-              <Text type="secondary">
-                {record.drawingEntries} + {record.bonusEntries} bonus
-              </Text>
-            </div>
-          </div>
-        );
-      },
-      sorter: (a, b) => {
-        const totalEntriesA = a.drawingEntries + a.bonusEntries;
-        const totalEntriesB = b.drawingEntries + b.bonusEntries;
-        return totalEntriesA - totalEntriesB;
-      },
-      sortDirections: ['ascend', 'descend'],
-    },
-    {
-      title: 'Prizes',
-      key: 'prizes',
-      width: 220,
-      render: (_, record) => {
-        const unlockedCount = record.prizes.filter(p => p.unlocked).length;
-        const redeemedCount = record.prizes.filter(p => p.redeemed).length;
-
-        return (
-          <div>
-            <div style={{ marginBottom: 8 }}>
-              {record.prizes.map((prize, index) => {
-                const statusText = prize.redeemed ? 'Redeemed' : prize.unlocked ? 'Unlocked' : 'Locked';
-                const redeemedAtText = prize.redeemedAt === 'Pending Server Timestamp' ? 'Redeemed: Pending' :
-                                       (prize.redeemedAt && !isNaN(prize.redeemedAt.getTime()) ? `Redeemed: ${prize.redeemedAt.toLocaleDateString()}` : '');
-
-
-                const tooltipTitle = (
-                  <div>
-                    <strong>{prize.name}</strong><br />
-                    Required: {prize.required} codes<br />
-                    Status: {statusText}
-                    {redeemedAtText && <><br />{redeemedAtText}</>}
-                  </div>
-                );
-
-                return (
-                  <Tooltip key={prize.id || index} title={tooltipTitle}>
-                    <Tag
-                      color={!prize.unlocked ? 'default' : prize.redeemed ? 'green' : 'blue'}
-                      style={{ margin: '1px', fontSize: 10, padding: '2px 6px' }}
-                    >
-                      {prizeIcons[prize.name]} {prize.name.length > 6 ? prize.name.slice(0, 6) + '...' : prize.name}
-                      {prize.redeemed ? ' ✓' : prize.unlocked ? ' 🔓' : ' 🔒'}
-                    </Tag>
-                  </Tooltip>
-                );
-              })}
-
-            </div>
-            <div style={{ fontSize: 11 }}>
-              <Text type="secondary">
-                {redeemedCount}/{unlockedCount}/{record.prizes.length}
-                {redeemedCount > 0 ? ` (${redeemedCount} redeemed)` : ''}
-              </Text>
-            </div>
-          </div>
-        );
-      },
+      title: 'Actions',
+      key: 'actions',
+      width: 160,
+      fixed: 'right',
+      render: (_, record) => (
+        <Space>
+          <Popconfirm
+            title="Reset this user's data?"
+            description="This will clear scans, entries, redemptions, and dates."
+            okText="Reset"
+            okType="danger"
+            icon={<ExclamationCircleOutlined style={{ color: '#faad14' }} />}
+            onConfirm={() => handleResetUser(record.id)}
+          >
+            <Button danger icon={<ReloadOutlined />} loading={loading}>
+              Reset
+            </Button>
+          </Popconfirm>
+        </Space>
+      ),
     },
   ], [currentPage, currentPageSize]);
 

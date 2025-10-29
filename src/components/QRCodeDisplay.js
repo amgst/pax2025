@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Row, Col, Button, notification, QRCode, Space, Tag, Alert } from 'antd';
-import { QrcodeOutlined, ReloadOutlined, LinkOutlined } from '@ant-design/icons';
+import { Card, Row, Col, Button, notification, QRCode, Space, Tag, Alert, Form, Input, Switch, Popconfirm } from 'antd';
+import { QrcodeOutlined, ReloadOutlined, LinkOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import firebaseService from '../services/firebase';
 
 const QRCodeDisplay = () => {
   const [loading, setLoading] = useState(false);
   const [qrCodes, setQrCodes] = useState([]);
   const [error, setError] = useState(null);
+  const [form] = Form.useForm();
 
   // Use centralized Firebase service
   const getDb = () => {
@@ -36,11 +37,14 @@ const QRCodeDisplay = () => {
         ...doc.data()
       }));
 
-      // Sort by location number if available
+      // Sort by name if available
       codes.sort((a, b) => {
-        const numA = parseInt(a.locationNumber) || 999;
-        const numB = parseInt(b.locationNumber) || 999;
-        return numA - numB;
+        const nameA = (a.name || a.locationName || '').toString().toLowerCase();
+        const nameB = (b.name || b.locationName || '').toString().toLowerCase();
+        if (nameA && nameB) return nameA.localeCompare(nameB);
+        if (nameA) return -1;
+        if (nameB) return 1;
+        return (a.code || '').localeCompare(b.code || '');
       });
 
       setQrCodes(codes);
@@ -58,12 +62,12 @@ const QRCodeDisplay = () => {
   };
 
   const testQRCode = (code) => {
-    const testUrl = `https://doomlings.com/pages/scavenger-hunt?code=${code}`;
+    const testUrl = `https://www.doomlings.com/pages/pax2025?code=${code}`;
     window.open(testUrl, '_blank');
   };
 
   const copyQRCode = (code) => {
-    const qrUrl = `https://doomlings.com/pages/scavenger-hunt?code=${code}`;
+    const qrUrl = `https://www.doomlings.com/pages/pax2025?code=${code}`;
     navigator.clipboard.writeText(qrUrl).then(() => {
       notification.success({
         message: 'Copied!',
@@ -75,6 +79,50 @@ const QRCodeDisplay = () => {
         description: 'Could not copy to clipboard'
       });
     });
+  };
+
+  const handleAddQRCode = async (values) => {
+    try {
+      setLoading(true);
+      await firebaseService.addQRCode({
+        code: values.code?.trim(),
+        name: values.name?.trim(),
+        description: values.description?.trim(),
+        active: values.active
+      });
+      notification.success({
+        message: 'QR Code Added',
+        description: 'New QR code has been added successfully.'
+      });
+      form.resetFields();
+      await loadQRCodes();
+    } catch (error) {
+      notification.error({
+        message: 'Add Failed',
+        description: error.message || 'Could not add QR code.'
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteQRCode = async (code) => {
+    try {
+      setLoading(true);
+      await firebaseService.deleteQRCode(code);
+      notification.success({
+        message: 'QR Code Removed',
+        description: 'QR code has been deleted.'
+      });
+      await loadQRCodes();
+    } catch (error) {
+      notification.error({
+        message: 'Delete Failed',
+        description: error.message || 'Could not delete QR code.'
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -110,6 +158,28 @@ const QRCodeDisplay = () => {
             Refresh
           </Button>
         </div>
+        <div style={{ marginTop: 16 }}>
+          <h4 style={{ marginBottom: 12 }}>Add a new QR code</h4>
+          <Form layout="inline" form={form} onFinish={handleAddQRCode}>
+            <Form.Item name="code" rules={[{ required: true, message: 'Code is required' }]}>
+              <Input placeholder="Code (document id)" allowClear />
+            </Form.Item>
+            <Form.Item name="name">
+              <Input placeholder="Name" allowClear style={{ width: 220 }} />
+            </Form.Item>
+            <Form.Item name="description">
+              <Input placeholder="Description" allowClear style={{ width: 300 }} />
+            </Form.Item>
+            <Form.Item name="active" valuePropName="checked" initialValue={true}>
+              <Switch checkedChildren="Active" unCheckedChildren="Inactive" />
+            </Form.Item>
+            <Form.Item>
+              <Button type="primary" htmlType="submit" icon={<PlusOutlined />} loading={loading}>
+                Add QR Code
+              </Button>
+            </Form.Item>
+          </Form>
+        </div>
       </Card>
     );
   }
@@ -133,19 +203,40 @@ const QRCodeDisplay = () => {
             Refresh QR Codes
           </Button>
         </div>
+        <div style={{ marginTop: 16 }}>
+          <Form layout="inline" form={form} onFinish={handleAddQRCode}>
+            <Form.Item name="code" rules={[{ required: true, message: 'Code is required' }]}> 
+              <Input placeholder="Code (document id)" allowClear />
+            </Form.Item>
+            <Form.Item name="name">
+              <Input placeholder="Name" allowClear style={{ width: 220 }} />
+            </Form.Item>
+            <Form.Item name="description">
+              <Input placeholder="Description" allowClear style={{ width: 300 }} />
+            </Form.Item>
+            <Form.Item name="active" valuePropName="checked" initialValue={true}>
+              <Switch checkedChildren="Active" unCheckedChildren="Inactive" />
+            </Form.Item>
+            <Form.Item>
+              <Button type="primary" htmlType="submit" icon={<PlusOutlined />} loading={loading}>
+                Add QR Code
+              </Button>
+            </Form.Item>
+          </Form>
+        </div>
       </Card>
 
       {/* QR Codes Grid */}
       <Row gutter={[16, 16]}>
         {qrCodes.map((qr) => {
-          const qrUrl = `https://www.doomlings.com/pages/scavenger-hunt?code=${qr.code}`;
+          const qrUrl = `https://www.doomlings.com/pages/pax2025?code=${qr.code}`;
           
           return (
             <Col xs={24} sm={12} md={8} lg={6} key={qr.code}>
               <Card
                 title={
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span>Location {qr.locationNumber || '?'}</span>
+                    <span>{qr.name || qr.locationName || 'QR Code'}</span>
                     <QrcodeOutlined />
                   </div>
                 }
@@ -171,7 +262,18 @@ const QRCodeDisplay = () => {
                     size="small"
                   >
                     Copy URL
-                  </Button>
+                  </Button>,
+                  <Popconfirm
+                    key="delete"
+                    title="Remove this QR code?"
+                    okText="Delete"
+                    okType="danger"
+                    onConfirm={() => handleDeleteQRCode(qr.code)}
+                  >
+                    <Button type="link" danger icon={<DeleteOutlined />} size="small">
+                      Delete
+                    </Button>
+                  </Popconfirm>
                 ]}
                 size="small"
               >
@@ -183,7 +285,7 @@ const QRCodeDisplay = () => {
                   />
                   <div>
                     <div style={{ fontWeight: 500, marginBottom: 6, fontSize: '14px' }}>
-                      {qr.locationName || qr.description || 'Unnamed Location'}
+                      {qr.name || qr.locationName || qr.description || 'Unnamed'}
                     </div>
                     <Tag 
                       style={{ fontSize: '11px', padding: '2px 6px' }}
@@ -191,14 +293,14 @@ const QRCodeDisplay = () => {
                     >
                       {qr.code}
                     </Tag>
-                    {qr.locationDescription && (
+                    {(qr.description || qr.locationDescription) && (
                       <div style={{ 
                         fontSize: '12px', 
                         color: '#666', 
                         marginTop: '8px',
                         lineHeight: '1.4'
                       }}>
-                        {qr.locationDescription}
+                        {qr.description || qr.locationDescription}
                       </div>
                     )}
                   </div>

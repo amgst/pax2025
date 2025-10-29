@@ -90,6 +90,51 @@ class FirebaseService {
       throw error;
     }
   }
+
+  async addQRCode(qr) {
+    if (!this.initialized) {
+      const err = new Error('Firebase not initialized');
+      console.error('Error adding QR code:', err);
+      throw err;
+    }
+
+    const { code, name, description, active } = qr || {};
+    if (!code) {
+      throw new Error('QR code value is required');
+    }
+
+    try {
+      const docRef = this.db.collection('valid_codes').doc(code);
+      await docRef.set({
+        name: name || '',
+        description: description || '',
+        active: active !== false,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+    } catch (error) {
+      console.error('Error adding QR code:', error);
+      throw error;
+    }
+  }
+
+  async deleteQRCode(code) {
+    if (!this.initialized) {
+      const err = new Error('Firebase not initialized');
+      console.error('Error deleting QR code:', err);
+      throw err;
+    }
+    if (!code) {
+      throw new Error('QR code value is required');
+    }
+
+    try {
+      await this.db.collection('valid_codes').doc(code).delete();
+    } catch (error) {
+      console.error('Error deleting QR code:', error);
+      throw error;
+    }
+  }
 }
 
 export default new FirebaseService();
