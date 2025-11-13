@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Row, Col, Button, notification, QRCode, Space, Tag, Alert, Form, Input, Switch, Popconfirm } from 'antd';
-import { QrcodeOutlined, ReloadOutlined, LinkOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons';
+import { createRoot } from 'react-dom/client';
+import { Card, Row, Col, Button, notification, QRCode, Space, Tag, Alert, Form, Input, Switch, Popconfirm, Dropdown, Modal } from 'antd';
+import { QrcodeOutlined, ReloadOutlined, LinkOutlined, DeleteOutlined, PlusOutlined, DownloadOutlined, FileImageOutlined, FilePdfOutlined, EditOutlined } from '@ant-design/icons';
+import jsPDF from 'jspdf';
 import firebaseService from '../services/firebase';
 
 const QRCodeDisplay = () => {
@@ -8,6 +10,9 @@ const QRCodeDisplay = () => {
   const [qrCodes, setQrCodes] = useState([]);
   const [error, setError] = useState(null);
   const [form] = Form.useForm();
+  const [editForm] = Form.useForm();
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [editingQR, setEditingQR] = useState(null);
 
   // Use centralized Firebase service
   const getDb = () => {
@@ -81,6 +86,198 @@ const QRCodeDisplay = () => {
     });
   };
 
+  const exportQRCodePNG = (qr) => {
+    try {
+      const qrUrl = `https://www.doomlings.com/pages/pax2025?code=${qr.code}`;
+      
+      // Create a temporary container for high-res QR code
+      const tempDiv = document.createElement('div');
+      tempDiv.style.position = 'fixed';
+      tempDiv.style.left = '-9999px';
+      tempDiv.style.top = '-9999px';
+      tempDiv.style.width = '800px';
+      tempDiv.style.height = '800px';
+      document.body.appendChild(tempDiv);
+      
+      // Create a temporary React root and render QR code
+      const tempRoot = createRoot(tempDiv);
+      
+      // Render QR code with larger size
+      tempRoot.render(
+        React.createElement(QRCode, {
+          value: qrUrl,
+          size: 800
+        })
+      );
+      
+      // Wait for canvas to render, then export
+      const checkCanvas = setInterval(() => {
+        const canvas = tempDiv.querySelector('canvas');
+        if (canvas) {
+          clearInterval(checkCanvas);
+          
+          // Create a higher resolution canvas
+          const exportSize = 800;
+          const exportCanvas = document.createElement('canvas');
+          exportCanvas.width = exportSize;
+          exportCanvas.height = exportSize;
+          const ctx = exportCanvas.getContext('2d');
+          
+          // Draw the QR code canvas onto export canvas
+          ctx.drawImage(canvas, 0, 0, exportSize, exportSize);
+          
+          exportCanvas.toBlob((blob) => {
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            const fileName = `QR-${qr.code}-${(qr.name || qr.locationName || 'code').replace(/[^a-z0-9]/gi, '_')}.png`;
+            link.download = fileName;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            
+            // Cleanup
+            setTimeout(() => {
+              tempRoot.unmount();
+              if (document.body.contains(tempDiv)) {
+                document.body.removeChild(tempDiv);
+              }
+            }, 100);
+            
+            notification.success({
+              message: 'QR Code Exported',
+              description: `QR code ${qr.code} has been downloaded`
+            });
+          }, 'image/png');
+        }
+      }, 100);
+      
+      // Timeout after 3 seconds
+      setTimeout(() => {
+        clearInterval(checkCanvas);
+        if (document.body.contains(tempDiv)) {
+          tempRoot.unmount();
+          document.body.removeChild(tempDiv);
+          notification.error({
+            message: 'Export Failed',
+            description: 'Could not generate QR code image. Please try again.'
+          });
+        }
+      }, 3000);
+    } catch (error) {
+      console.error('Export error:', error);
+      notification.error({
+        message: 'Export Failed',
+        description: error.message || 'Could not export QR code'
+      });
+    }
+  };
+
+  const exportQRCodePDF = (qr) => {
+    try {
+      const qrUrl = `https://www.doomlings.com/pages/pax2025?code=${qr.code}`;
+      
+      // Create a temporary container for high-res QR code
+      const tempDiv = document.createElement('div');
+      tempDiv.style.position = 'fixed';
+      tempDiv.style.left = '-9999px';
+      tempDiv.style.top = '-9999px';
+      tempDiv.style.width = '800px';
+      tempDiv.style.height = '800px';
+      document.body.appendChild(tempDiv);
+      
+      // Create a temporary React root and render QR code
+      const tempRoot = createRoot(tempDiv);
+      
+      // Render QR code with larger size
+      tempRoot.render(
+        React.createElement(QRCode, {
+          value: qrUrl,
+          size: 800
+        })
+      );
+      
+      // Wait for canvas to render, then export
+      const checkCanvas = setInterval(() => {
+        const canvas = tempDiv.querySelector('canvas');
+        if (canvas) {
+          clearInterval(checkCanvas);
+          
+          // Convert canvas to image data
+          const imageData = canvas.toDataURL('image/png');
+          
+          // Create PDF
+          const pdf = new jsPDF({
+            orientation: 'portrait',
+            unit: 'mm',
+            format: 'a4'
+          });
+          
+          const pdfWidth = pdf.internal.pageSize.getWidth();
+          const pdfHeight = pdf.internal.pageSize.getHeight();
+          
+          // Calculate dimensions to center the QR code
+          const qrSize = Math.min(pdfWidth - 40, pdfHeight - 80); // Leave margins
+          const x = (pdfWidth - qrSize) / 2;
+          const y = 30; // Top margin
+          
+          // Add QR code image to PDF
+          pdf.addImage(imageData, 'PNG', x, y, qrSize, qrSize);
+          
+          // Add QR code information
+          pdf.setFontSize(16);
+          pdf.text(qr.name || qr.locationName || 'QR Code', pdfWidth / 2, y + qrSize + 15, { align: 'center' });
+          
+          pdf.setFontSize(12);
+          pdf.text(`Code: ${qr.code}`, pdfWidth / 2, y + qrSize + 25, { align: 'center' });
+          
+          if (qr.description || qr.locationDescription) {
+            pdf.setFontSize(10);
+            const description = (qr.description || qr.locationDescription).substring(0, 100);
+            pdf.text(description, pdfWidth / 2, y + qrSize + 35, { align: 'center', maxWidth: pdfWidth - 40 });
+          }
+          
+          // Save PDF
+          const fileName = `QR-${qr.code}-${(qr.name || qr.locationName || 'code').replace(/[^a-z0-9]/gi, '_')}.pdf`;
+          pdf.save(fileName);
+          
+          // Cleanup
+          setTimeout(() => {
+            tempRoot.unmount();
+            if (document.body.contains(tempDiv)) {
+              document.body.removeChild(tempDiv);
+            }
+          }, 100);
+          
+          notification.success({
+            message: 'QR Code Exported',
+            description: `QR code ${qr.code} has been exported as PDF`
+          });
+        }
+      }, 100);
+      
+      // Timeout after 3 seconds
+      setTimeout(() => {
+        clearInterval(checkCanvas);
+        if (document.body.contains(tempDiv)) {
+          tempRoot.unmount();
+          document.body.removeChild(tempDiv);
+          notification.error({
+            message: 'Export Failed',
+            description: 'Could not generate QR code PDF. Please try again.'
+          });
+        }
+      }, 3000);
+    } catch (error) {
+      console.error('Export error:', error);
+      notification.error({
+        message: 'Export Failed',
+        description: error.message || 'Could not export QR code as PDF'
+      });
+    }
+  };
+
   const handleAddQRCode = async (values) => {
     try {
       setLoading(true);
@@ -123,6 +320,50 @@ const QRCodeDisplay = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const openEditModal = (qr) => {
+    setEditingQR(qr);
+    editForm.setFieldsValue({
+      name: qr.name || qr.locationName || '',
+      description: qr.description || qr.locationDescription || '',
+      active: qr.active !== false
+    });
+    setEditModalVisible(true);
+  };
+
+  const handleEditQRCode = async (values) => {
+    if (!editingQR) return;
+    
+    try {
+      setLoading(true);
+      await firebaseService.updateQRCode(editingQR.code, {
+        name: values.name?.trim() || '',
+        description: values.description?.trim() || '',
+        active: values.active
+      });
+      notification.success({
+        message: 'QR Code Updated',
+        description: 'QR code has been updated successfully.'
+      });
+      setEditModalVisible(false);
+      setEditingQR(null);
+      editForm.resetFields();
+      await loadQRCodes();
+    } catch (error) {
+      notification.error({
+        message: 'Update Failed',
+        description: error.message || 'Could not update QR code.'
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditModalVisible(false);
+    setEditingQR(null);
+    editForm.resetFields();
   };
 
   useEffect(() => {
@@ -263,6 +504,43 @@ const QRCodeDisplay = () => {
                   >
                     Copy URL
                   </Button>,
+                  <Button 
+                    key="edit" 
+                    type="link"
+                    icon={<EditOutlined />}
+                    onClick={() => openEditModal(qr)}
+                    size="small"
+                  >
+                    Edit
+                  </Button>,
+                  <Dropdown
+                    key="export"
+                    menu={{
+                      items: [
+                        {
+                          key: 'png',
+                          label: 'Export as PNG',
+                          icon: <FileImageOutlined />,
+                          onClick: () => exportQRCodePNG(qr)
+                        },
+                        {
+                          key: 'pdf',
+                          label: 'Export as PDF',
+                          icon: <FilePdfOutlined />,
+                          onClick: () => exportQRCodePDF(qr)
+                        }
+                      ]
+                    }}
+                    trigger={['click']}
+                  >
+                    <Button 
+                      type="link"
+                      icon={<DownloadOutlined />}
+                      size="small"
+                    >
+                      Export
+                    </Button>
+                  </Dropdown>,
                   <Popconfirm
                     key="delete"
                     title="Remove this QR code?"
@@ -317,6 +595,50 @@ const QRCodeDisplay = () => {
           <p style={{ marginTop: '16px', color: '#666' }}>Loading QR codes...</p>
         </div>
       )}
+
+      {/* Edit QR Code Modal */}
+      <Modal
+        title="Edit QR Code"
+        open={editModalVisible}
+        onCancel={handleCancelEdit}
+        onOk={() => editForm.submit()}
+        confirmLoading={loading}
+        okText="Save"
+        cancelText="Cancel"
+      >
+        <Form
+          form={editForm}
+          layout="vertical"
+          onFinish={handleEditQRCode}
+        >
+          <Form.Item label="Code">
+            <Input disabled value={editingQR?.code} />
+          </Form.Item>
+          <Form.Item
+            label="Name"
+            name="name"
+          >
+            <Input placeholder="Enter QR code name" allowClear />
+          </Form.Item>
+          <Form.Item
+            label="Description"
+            name="description"
+          >
+            <Input.TextArea 
+              placeholder="Enter description (optional)" 
+              allowClear 
+              rows={3}
+            />
+          </Form.Item>
+          <Form.Item
+            label="Status"
+            name="active"
+            valuePropName="checked"
+          >
+            <Switch checkedChildren="Active" unCheckedChildren="Inactive" />
+          </Form.Item>
+        </Form>
+      </Modal>
     </div>
   );
 };

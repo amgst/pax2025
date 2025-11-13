@@ -118,6 +118,28 @@ class FirebaseService {
     }
   }
 
+  async updateQRCode(code, updates) {
+    if (!this.initialized) {
+      const err = new Error('Firebase not initialized');
+      console.error('Error updating QR code:', err);
+      throw err;
+    }
+    if (!code) {
+      throw new Error('QR code value is required');
+    }
+
+    try {
+      const docRef = this.db.collection('valid_codes').doc(code);
+      await docRef.update({
+        ...updates,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    } catch (error) {
+      console.error('Error updating QR code:', error);
+      throw error;
+    }
+  }
+
   async deleteQRCode(code) {
     if (!this.initialized) {
       const err = new Error('Firebase not initialized');
