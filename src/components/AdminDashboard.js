@@ -723,87 +723,27 @@ const handleResetUser = async (userId) => {
       },
     },
     {
-      title: 'Completed (18 Codes)',
-      dataIndex: 'completionDate',
-      key: 'completionDate',
-      width: 120,
-      render: (date) => {
-        if (!date || isNaN(date.getTime())) {
-          return (
-            <div style={{ fontSize: 12, color: '#999' }}>
-              <div>N/A</div>
-              <Text type="secondary">N/A</Text>
-            </div>
-          );
-        }
-        return (
-          <div style={{ fontSize: 12 }}>
-            <div>{date.toLocaleDateString()}</div>
-            <Text type="secondary">{date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
-          </div>
-        );
-      },
-      sorter: (a, b) => {
-        const dateA = (a.completionDate instanceof Date && !isNaN(a.completionDate.getTime())) ? a.completionDate.getTime() : 0;
-        const dateB = (b.completionDate instanceof Date && !isNaN(b.completionDate.getTime())) ? b.completionDate.getTime() : 0;
-        return dateA - dateB;
-      },
-    },
-    {
-      title: 'Time to Complete',
-      key: 'timeToComplete',
+      title: 'Redemption Status',
+      key: 'redemptionStatus',
       width: 150,
+      align: 'center',
       render: (_, record) => {
-        if (!(record.firstScanDate instanceof Date) || isNaN(record.firstScanDate.getTime()) ||
-            !(record.completionDate instanceof Date) || isNaN(record.completionDate.getTime())) {
-          return (
-            <div style={{ fontSize: 12, color: '#999' }}>
-              <div>N/A</div>
-            </div>
-          );
-        }
-
-        const diffMs = record.completionDate.getTime() - record.firstScanDate.getTime();
-        const diffMinutes = diffMs / (1000 * 60);
-
-        let timeDisplay = '';
-        let textColor = 'inherit';
-
-        if (diffMinutes <= 5) {
-          textColor = 'red';
-        }
-
-        if (diffMinutes < 1) {
-          timeDisplay = `${Math.round(diffMs / 1000)}s`;
-        } else if (diffMinutes < 60) {
-          timeDisplay = `${Math.round(diffMinutes)}m`;
-        } else {
-          const diffHours = diffMinutes / 60;
-          if (diffHours < 24) {
-            timeDisplay = `${Math.round(diffHours)}h ${Math.round(diffMinutes % 60)}m`;
-          } else {
-            const diffDays = diffHours / 24;
-            timeDisplay = `${Math.floor(diffDays)}d ${Math.round(diffHours % 24)}h`;
-          }
-        }
-
+        const hasScannedCodes = record.scannedCodes > 0;
         return (
-          <div style={{ fontSize: 12, color: textColor }}>
-            {timeDisplay}
+          <div style={{ textAlign: 'center' }}>
+            <Tag color={hasScannedCodes ? 'green' : 'default'}>
+              {hasScannedCodes ? 'Redeemed' : 'Not Redeemed'}
+            </Tag>
+            {hasScannedCodes && (
+              <div style={{ fontSize: 11, marginTop: 4, color: '#666' }}>
+                {record.scannedCodes} {record.scannedCodes === 1 ? 'scan' : 'scans'}
+              </div>
+            )}
           </div>
         );
       },
       sorter: (a, b) => {
-        const getTimeDiff = (record) => {
-          if (record.firstScanDate instanceof Date && !isNaN(record.firstScanDate.getTime()) &&
-              record.completionDate instanceof Date && !isNaN(record.completionDate.getTime())) {
-            return record.completionDate.getTime() - record.firstScanDate.getTime();
-          }
-          return Infinity;
-        };
-        const timeA = getTimeDiff(a);
-        const timeB = getTimeDiff(b);
-        return timeB - timeA;
+        return a.scannedCodes - b.scannedCodes;
       },
       sortDirections: ['ascend', 'descend'],
     },
