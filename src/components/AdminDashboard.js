@@ -351,7 +351,8 @@ const handleResetUser = async (userId) => {
           matchesStatus = user.scannedCodes >= user.totalCodes;
           break;
         case 'redeemed':
-          matchesStatus = user.totalRedemptions > 0;
+          // Business rule: user is \"redeemed\" if they have any scans
+          matchesStatus = user.scannedCodes > 0;
           break;
         case 'inactive':
           matchesStatus = user.scannedCodes === 0;
@@ -377,6 +378,8 @@ const handleResetUser = async (userId) => {
     const completedUsers = userData.filter(u => u.scannedCodes >= u.totalCodes).length;
     const totalEntries = userData.reduce((sum, u) => sum + u.drawingEntries + u.bonusEntries, 0);
     const totalRedemptions = userData.reduce((sum, u) => sum + u.totalRedemptions, 0);
+    // Business rule: a user is considered \"redeemed\" if they have scanned at least one code
+    const usersWithRedemptions = userData.filter(u => u.scannedCodes > 0).length;
 
     let completedIn5Minutes = 0;
 
@@ -486,6 +489,7 @@ const handleResetUser = async (userId) => {
       completedUsers,
       totalEntries,
       totalRedemptions,
+      usersWithRedemptions,
       averageProgress: totalUsers > 0 ?
         Math.round(userData.reduce((sum, u) => sum + (u.scannedCodes / u.totalCodes * 100), 0) / totalUsers) : 0,
       completedIn5Minutes,
@@ -728,13 +732,14 @@ const handleResetUser = async (userId) => {
       width: 150,
       align: 'center',
       render: (_, record) => {
-        const hasScannedCodes = record.scannedCodes > 0;
+        // Business rule: if user has any scans, they are considered redeemed
+        const hasRedemptions = record.scannedCodes > 0;
         return (
           <div style={{ textAlign: 'center' }}>
-            <Tag color={hasScannedCodes ? 'green' : 'default'}>
-              {hasScannedCodes ? 'Redeemed' : 'Not Redeemed'}
+            <Tag color={hasRedemptions ? 'green' : 'default'}>
+              {hasRedemptions ? 'Redeemed' : 'Not Redeemed'}
             </Tag>
-            {hasScannedCodes && (
+            {hasRedemptions && (
               <div style={{ fontSize: 11, marginTop: 4, color: '#666' }}>
                 {record.scannedCodes} {record.scannedCodes === 1 ? 'scan' : 'scans'}
               </div>
@@ -909,13 +914,13 @@ const handleResetUser = async (userId) => {
               />
             </Card>
           </Col>
-          <Col xs={24} sm={12} lg={6}>
-            <Card>
-              <Statistic
-                title="Total Redemptions"
-                value={stats.totalRedemptions}
-                prefix={<GiftOutlined />}
-                valueStyle={{ color: '#eb2f96' }}
+        <Col xs={24} sm={12} lg={6}>
+          <Card>
+            <Statistic
+              title="Users Redeemed"
+              value={stats.usersWithRedemptions}
+              prefix={<GiftOutlined />}
+              valueStyle={{ color: '#eb2f96' }}
             />
           </Card>
         </Col>
@@ -1071,18 +1076,6 @@ const handleResetUser = async (userId) => {
         </Col>
         <Col xs={24} sm={12} md={8} lg={4}>
           <Card>
-            <Tooltip title="Number of users who have scanned all 18 unique QR codes.">
-              <Statistic
-                title="Completed"
-                value={stats.completedUsers}
-                prefix={<GiftOutlined />}
-                valueStyle={{ color: '#13c2c2' }}
-              />
-            </Tooltip>
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} md={8} lg={4}>
-          <Card>
             <Tooltip title="Number of users who completed all 18 codes within 5 minutes of their first scan.">
               <Statistic
                 title="Completed < 5 Mins"
@@ -1107,10 +1100,10 @@ const handleResetUser = async (userId) => {
         </Col>
         <Col xs={24} sm={12} md={8} lg={4}>
           <Card>
-            <Tooltip title="Total number of prize redemptions made by all users.">
+            <Tooltip title="Number of users who have redeemed at least one prize.">
               <Statistic
                 title="Redemptions"
-                value={stats.totalRedemptions}
+                value={stats.usersWithRedemptions}
                 prefix={<GiftOutlined />}
                 valueStyle={{ color: '#eb2f96' }}
               />
@@ -1269,10 +1262,10 @@ const handleResetUser = async (userId) => {
                   marginLeft: '40%',
                   width: '60%'
                 }}>
-                  <div style={{ fontSize: '14px', fontWeight: 'bold' }}>{userData.filter(u => u.totalRedemptions > 0).length}</div>
+                  <div style={{ fontSize: '14px', fontWeight: 'bold' }}>{stats.usersWithRedemptions}</div>
                   <div>Made Redemptions</div>
                   <div style={{ fontSize: '12px', opacity: 0.8 }}>
-                    {stats.totalUsers > 0 ? Math.round((userData.filter(u => u.totalRedemptions > 0).length / stats.totalUsers) * 100) : 0}%
+                    {stats.totalUsers > 0 ? Math.round((stats.usersWithRedemptions / stats.totalUsers) * 100) : 0}%
                   </div>
                 </div>
               </div>
@@ -1315,7 +1308,7 @@ const handleResetUser = async (userId) => {
                 <Card size="small" style={{ background: '#f0f5ff' }}>
                   <Statistic
                     title="Redemption Rate"
-                    value={stats.completedUsers > 0 ? Math.round((userData.filter(u => u.totalRedemptions > 0).length / stats.completedUsers) * 100) : 0}
+                    value={stats.completedUsers > 0 ? Math.round((stats.usersWithRedemptions / stats.completedUsers) * 100) : 0}
                     suffix="%"
                     valueStyle={{ color: '#1890ff' }}
                     prefix={<GiftOutlined />}
@@ -1384,51 +1377,6 @@ const handleResetUser = async (userId) => {
                 <Progress percent={Math.round((stats.engagementStats.completed / stats.totalUsers) * 100)} strokeColor="#52c41a" />
               </div>
             </div>
-          </Card>
-        </Col>
-        <Col xs={24} lg={12}>
-          <Card title="Prize Redemption Rates" extra={<GiftOutlined />}>
-            <Table
-              dataSource={stats.prizeAnalytics}
-              columns={[
-                {
-                  title: 'Prize',
-                  dataIndex: 'name',
-                  key: 'name',
-                  render: (text) => (
-                    <Space>
-                      <span>{prizeIcons[text]}</span>
-                      <span>{text}</span>
-                    </Space>
-                  ),
-                },
-                {
-                  title: 'Unlocked',
-                  dataIndex: 'unlocked',
-                  key: 'unlocked',
-                },
-                {
-                  title: 'Redeemed',
-                  dataIndex: 'redeemed',
-                  key: 'redeemed',
-                },
-                {
-                  title: 'Rate',
-                  dataIndex: 'redemptionRate',
-                  key: 'redemptionRate',
-                  render: (rate) => (
-                    <Progress 
-                      percent={rate} 
-                      size="small" 
-                      strokeColor={rate >= 80 ? '#52c41a' : rate >= 60 ? '#faad14' : '#ff4d4f'} 
-                    />
-                  ),
-                },
-              ]}
-              pagination={false}
-              size="small"
-              rowKey="name"
-            />
           </Card>
         </Col>
       </Row>
